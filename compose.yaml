@@ -1,0 +1,23 @@
+# docker compose up -d        build (first time) and start the server on port 8000; it prints "ready:" when listening
+# docker compose logs -f      watch it          docker compose down      stop it
+#
+# Serves the 4B from Hugging Face. To serve other planners, override `command` (and mount local bundles) in a
+# compose.override.yaml next to this file; compose merges it in automatically.
+services:
+  reachy-motion:
+    build: .
+    image: reachy-motion
+    command: ["--bundle", "medium=binhpham/reachy-mini-motion-planner-4b"]
+    ports: ["8000:8000"]
+    ipc: host
+    restart: unless-stopped
+    volumes:
+      - reachy-motion-cache:/root/.cache
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
+volumes:
+  reachy-motion-cache:
+    name: reachy-motion-cache  # model downloads and compiled kernels survive rebuilds; same volume as `docker run -v`

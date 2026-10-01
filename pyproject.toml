@@ -1,0 +1,32 @@
+[project]
+name = "reachy-motion-generator"
+version = "1.2.0"
+description = "Text to motion for Reachy Mini: a fine-tuned LLM writes a motion recipe, a flow-matching transformer turns it into reachable 25 Hz motion"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "torch>=2.3",
+    "huggingface-hub>=0.24",
+    "transformers",
+    "reachy-mini-rust-kinematics>=1.0.3",
+]
+
+[project.optional-dependencies]
+serve = ["vllm==0.30.0", "fastapi", "uvicorn", "ninja"]
+render = ["mujoco==3.3.0", "imageio[ffmpeg]>=2.34", "pillow>=10", "reachy-mini>=1.10"]
+teacher = ["openai>=1.40"]
+train = ["unsloth", "trl", "datasets", "peft"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["common", "planner", "planner.distill", "generator", "renderer", "inference"]
+
+[tool.setuptools.package-data]
+common = ["assets/*.json"]
+planner = ["examples/*"]

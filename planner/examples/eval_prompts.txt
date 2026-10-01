@@ -1,0 +1,33 @@
+# held-out real emotions (never in teacher data; prompts filtered at cos<=0.72)
+disgusted. A movement you use when you feel disgusted. It could be because someone offers you food or worse, a drink.
+downcast. A longer movement that shows discouragement or sadness. You can also use it as a sad no
+electric. When plugged in, you show a jolt of electricity rising from bottom to top.
+exhausted. You start falling asleep because you've been working or powered on for too long.
+frustrated. You use this when you can’t do something or can’t find the solution to a problem.
+lonely. Use when you no longer see or hear anyone to talk to. You feel isolated from any interaction.
+rage. You growl loudly, could be in response to injustice or extreme anger. Can be adapted to a desperate 'why?'
+relief. When a stressful or difficult situation is finally resolved.
+surprised. A reaction of surprise or amazement to something unexpected.
+thoughtful. You look up as if searching for a new idea, especially in complex or uncertain situations.
+welcoming. A welcoming gesture to greet someone.
+impatient. An impatient movement used when you want things to move faster, like when someone says a demo is coming but it never starts.
+
+# OOD test prompts
+heartbroken. You have just received news that devastated you.
+triumphant. You have just won something and want everyone to know.
+jealous. You feel jealous of someone getting attention instead of you.
+smug. You are very pleased with yourself and slightly superior about it.
+nostalgic. You feel wistful remembering something from long ago.
+suspicious. You do not trust what was just said and are watching closely.
+drunk. You are unsteady and your movements are loose and uncoordinated.
+sneezing. You build up and then release a sudden sharp sneeze.
+a cat stalking prey. You crouch low, freeze, and creep forward slowly.
+buffering. You are stuck waiting for something to load, frozen and repeating.
+grieving. You are mourning the loss of someone you loved.
+ecstatic. You are overjoyed and can barely contain yourself.
+defeated. You tried your hardest and still lost.
+mischievous. You are about to play a harmless prank.
+startled. A sudden loud noise just made you jump.
+sleepy toddler. You are fighting to stay awake and keep nodding off.
+proud parent. You are watching your child succeed on stage.
+anxious. You are nervously waiting for important results.

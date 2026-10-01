@@ -1,0 +1,10 @@
+.git
+.venv
+.claude
+runs
+distill_data
+checkpoints
+visualizer
+docs
+**/__pycache__
+.env
