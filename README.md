@@ -11,6 +11,7 @@ fitted to what the robot can physically reach.
 - **Dataset:** [reachy-mini-massive-motion-library](https://huggingface.co/datasets/binhpham/reachy-mini-massive-motion-library),
   10,872 prompts performed by the robot (15 h of motion, with video)
 - **Python client:** [reachy-motion-generator-api](https://github.com/pham-tuan-binh/reachy-motion-generator-api), with an example that plays results on the robot
+- **Animate the robot with it:** [reachy-animation](https://github.com/pham-tuan-binh/reachy-animation) plays generated motions live, crossfaded with idle breathing and speech-driven head sway
 
 ## Run it
 
@@ -77,6 +78,20 @@ Two endpoints, same input:
 Both also return the `recipe` and `idea` the planner wrote, and `timing_ms`. To watch a result, drop a move JSON onto
 the [visualizer](https://huggingface.co/spaces/binhpham/reachy-mini-motion-generator), or point the page at your
 server (the page is HTTPS, so the server must be too).
+
+To play results on a robot that is also talking, use [reachy-animation](https://github.com/pham-tuan-binh/reachy-animation).
+It requests the motion in the background, crossfades it in when it arrives, and keeps the head swaying with speech on
+top, so the robot never jumps or freezes:
+
+```python
+from reachy_animation import Animator, Clip, to_target
+
+animator = Animator(fps=60)
+animator.on_pose(lambda pose: robot.set_target(*to_target(pose)))
+animator.start()
+animator.play(lambda: Clip.load(requests.post("http://localhost:8000/generate-dense",
+                                              json={"prompt": "sneezing. You build up and then sneeze loudly."}).json()["moves"][0]))
+```
 
 ## How it works
 
