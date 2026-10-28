@@ -19,11 +19,15 @@ You need Linux, an NVIDIA GPU and Docker with the
 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/).
 
 ```bash
-git clone https://github.com/pham-tuan-binh/reachy-motion-generator && cd reachy-motion-generator
-docker compose up -d        # builds the image, serves the 4B on port 8000; prints "ready: ..." when listening
+curl -O https://raw.githubusercontent.com/pham-tuan-binh/reachy-motion-generator/main/compose.yaml
+docker compose pull         # prebuilt image from ghcr.io/pham-tuan-binh/reachy-motion
+docker compose up -d        # serves the 4B on port 8000; prints "ready: ..." when listening
 curl -s localhost:8000/generate-dense -H 'content-type: application/json' \
      -d '{"prompt": "sneezing. You build up and then sneeze loudly."}'
 ```
+
+Only `compose.yaml` is needed. To build the image yourself instead, clone the repo and run `docker compose up -d --build`;
+images are tagged `latest` and by commit (`ghcr.io/pham-tuan-binh/reachy-motion:<commit>`) if you want to pin one.
 
 The model downloads from Hugging Face on first start, and is cached with the compiled GPU kernels in the
 `reachy-motion-cache` volume. Startup takes a few minutes. Times are on an RTX PRO 6000 (96 GB, fits all three); an
