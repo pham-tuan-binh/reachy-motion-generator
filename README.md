@@ -1,5 +1,13 @@
 # Reachy Mini text-to-motion
 
+This fork adds **settled-pose conditioning and portable v4 generator training** on
+branch `state-conditioned-generator-v4`, based on upstream commit
+`18ff98574a8f0652b21db32f204a8029f8930d88`.
+See [the v4 guide](docs/STATE_CONDITIONED.md) for checkpoints, dataset downloads,
+both nine-field state APIs, recipe sampling, training and evidence limits.
+The original HTTP server and `pipeline.py` below retain their legacy generator
+path; use the explicit v4 Python API or `python -m generator.conditioned_cli`.
+
 Type what [Reachy Mini](https://github.com/pollen-robotics/reachy_mini) should express (*"sneezing"*, *"a cat stalking
 prey"*, *"heartbroken"*) and get a motion the robot can play right away: head, antennas and body at 25 Hz, already
 fitted to what the robot can physically reach.

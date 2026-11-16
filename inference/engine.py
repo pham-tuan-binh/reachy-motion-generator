@@ -81,8 +81,12 @@ class Planner:
             from planner.distill.common import lm_class
             self.llm = lm_class(path).from_pretrained(path, dtype=torch.bfloat16).to(device()).eval()
 
-    def text(self, prompt):
-        return self.tok.apply_chat_template(student_messages(prompt), tokenize=False, add_generation_prompt=True,
+    def text(self, prompt, current_pose=None):
+        messages = student_messages(prompt)
+        if current_pose is not None:
+            from planner.state import state_messages
+            messages = state_messages(prompt, current_pose)
+        return self.tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True,
                                             enable_thinking=False)
 
     def complete(self, texts, temperature, seed):
@@ -111,14 +115,14 @@ class Planner:
         r = d.get("recipe")
         return (d.get("idea", ""), r) if r and not check(r) else (d.get("idea", ""), None)
 
-    def plan(self, prompt, seed=0, retries=2, batched=False):
+    def plan(self, prompt, seed=0, retries=2, batched=False, current_pose=None):
         """Greedy recipe; if it is invalid, up to ``retries`` samples at temperature 0.7.
 
         ``batched=False`` tries them one after another, only when needed. ``batched=True`` decodes the greedy answer
         and all retries together in one call: the greedy answer still wins when it is valid (same output), and an
         invalid one costs no extra round, at the price of a slightly slower decode for every request.
         """
-        text = self.text(prompt)
+        text = self.text(prompt, current_pose=current_pose)
         if batched and retries and self.backend == "vllm":
             outs = self.complete([text] * (1 + retries), [0.0] + [0.7] * retries, [seed + k for k in range(1 + retries)])
             for idea, rec in map(self.parse, outs):

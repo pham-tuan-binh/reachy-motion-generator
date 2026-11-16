@@ -1,0 +1,12 @@
+{
+  "upstream": "https://github.com/pham-tuan-binh/reachy-motion-generator",
+  "upstream_revision": "18ff98574a8f0652b21db32f204a8029f8930d88",
+  "port": "State-conditioned generator v4, model/sampler and training math preserved from the frozen pilot",
+  "reference_repository": "https://github.com/creatorrr/loopy",
+  "reference_files_sha256": {
+    "generator_models_v4.py": "6e9d00e08f1da38577bb30fa5a46e1bdabf8e190d494b01c9b108de8f0dcec70",
+    "generator_train_v4.py": "597c02146a2107cfab9ffcf5dbfc483a446e17ca70ee969ee4e560a03f74d3af"
+  },
+  "published_model": "https://huggingface.co/diwank/reachy-mini-trajectory-generator-v4-20261116",
+  "published_dataset": "https://huggingface.co/datasets/diwank/reachy-mini-generator-curriculum-v4-20261116"
+}
