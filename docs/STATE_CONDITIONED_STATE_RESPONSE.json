@@ -1,0 +1,169 @@
+{
+  "audited_at": "2026-11-16T23:25:30.054531+00:00",
+  "architectural_state_acceptance_passed": true,
+  "device": "cpu",
+  "same_plan_same_seed": true,
+  "seed": 431,
+  "steps": 8,
+  "cfg": 1.0,
+  "lowpass_hz": 4.0,
+  "plan": {
+    "duration": 1.68,
+    "keys": [
+      {
+        "t": 0.0,
+        "earR": 15.0,
+        "earL": 15.0,
+        "pitch": 0.0,
+        "roll": 0.0,
+        "yaw": 0.0,
+        "z": 3.0,
+        "body": 0.0,
+        "energy": 0.0
+      },
+      {
+        "t": 1.64,
+        "earR": 30.0,
+        "earL": 5.0,
+        "pitch": -4.0,
+        "roll": 3.0,
+        "yaw": 12.0,
+        "z": 3.0,
+        "body": 12.0,
+        "energy": 0.5
+      }
+    ]
+  },
+  "origins": [
+    {
+      "roll": 0.0,
+      "pitch": -4.0,
+      "yaw": 0.0,
+      "body": 0.0,
+      "right": -10.0,
+      "left": 10.0,
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    {
+      "roll": 2.0,
+      "pitch": -12.0,
+      "yaw": 11.0,
+      "body": 8.0,
+      "right": -10.0,
+      "left": 10.0,
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    }
+  ],
+  "native_channels": [
+    "x_m",
+    "y_m",
+    "z_m",
+    "roll_rad",
+    "pitch_rad",
+    "yaw_rad",
+    "right_rad",
+    "left_rad",
+    "body_rad"
+  ],
+  "results": {
+    "original": {
+      "checkpoint": "generator.pt",
+      "checkpoint_sha256": "703c8b23029bb61021ecbd355295fd4941a39af3297253d88dc647450ec7144b",
+      "state_conditioned": false,
+      "shape": [
+        42,
+        9
+      ],
+      "max_absolute_native_difference": 0.0,
+      "max_absolute_difference_by_native_channel": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "changed_native_values": 0
+    },
+    "full": {
+      "checkpoint": "checkpoint-500.pt",
+      "checkpoint_sha256": "ca2d05c9217ceb657476d9c80f858c9a6f3822bdaf840aba58fb46dc283ac0b8",
+      "state_conditioned": true,
+      "shape": [
+        42,
+        9
+      ],
+      "max_absolute_native_difference": 0.0028571091210746885,
+      "max_absolute_difference_by_native_channel": [
+        4.6062665318172334e-05,
+        7.673471742624402e-05,
+        2.882957258257355e-05,
+        5.679421963221583e-05,
+        0.00012969100071782806,
+        0.0003865685642277794,
+        0.0014817974635150666,
+        0.0028571091210746885,
+        0.00028396482487391683
+      ],
+      "changed_native_values": 378
+    },
+    "residual": {
+      "checkpoint": "checkpoint-500.pt",
+      "checkpoint_sha256": "09b46017484f06ebf5c9cc5eb2d18dc8ce7a6976426530830ff1df60104bae5f",
+      "state_conditioned": true,
+      "shape": [
+        42,
+        9
+      ],
+      "max_absolute_native_difference": 8.364937141608353e-05,
+      "max_absolute_difference_by_native_channel": [
+        1.6223560770974737e-06,
+        8.835864436789625e-07,
+        6.175370879379916e-07,
+        3.9563621737313814e-05,
+        7.264830654309107e-05,
+        7.313317975230632e-05,
+        7.571721408422549e-05,
+        7.07832687297516e-05,
+        8.364937141608353e-05
+      ],
+      "changed_native_values": 360
+    },
+    "large": {
+      "checkpoint": "checkpoint-1000.pt",
+      "checkpoint_sha256": "95239e208f9cd1f0d20a960089d41fa66db5f38c7d0dfc998aabf678d1a7e700",
+      "state_conditioned": true,
+      "shape": [
+        42,
+        9
+      ],
+      "max_absolute_native_difference": 0.0028659163429519685,
+      "max_absolute_difference_by_native_channel": [
+        0.00012652004849387512,
+        3.8146481136470045e-05,
+        5.512703832086978e-05,
+        0.0007886455518070767,
+        0.002536935617797731,
+        0.0015123517591191238,
+        0.0028659163429519685,
+        0.0015383789310809137,
+        0.000781776096958009
+      ],
+      "changed_native_values": 378
+    }
+  },
+  "source_sha256": {
+    "state_sensitivity.py": "a4207fc0e25c1c21de1d16c8facbd4e1eb825351dabdf40b56987649f147b095",
+    "conditioned.py": "f5669e17c716ed0a89ddf227771d05c4ea61dd0947c0ebf82703e69d298d4bde",
+    "model.py": "2d9b2c602a9bbf67bcd05756a156d495f9c6125ea475747357e6a384c15dadb1",
+    "sample.py": "3d1da60228358d47f72ef8612481b3e2c8759199b93a68d3e6547df209ca061a"
+  },
+  "limitation": "Nonzero response to supplied current pose proves input support, not improved task success or safety."
+}

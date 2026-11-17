@@ -1,0 +1,89 @@
+[
+  {
+    "id": "v5/train/nod/0000/a/natural",
+    "split": "train",
+    "instruction": "Dip your head downward and bring it back, doing that exactly 2 times.",
+    "origin": {
+      "body": -7.889,
+      "left": 10.0,
+      "pitch": -11.119,
+      "right": -10.0,
+      "roll": -3.597,
+      "x": 0.00012,
+      "y": -0.00038,
+      "yaw": -4.525,
+      "z": 0.00078
+    },
+    "family": "nod",
+    "track": "natural",
+    "intent": {
+      "gesture": "nod",
+      "endpoint": "return",
+      "cycles": 2
+    }
+  },
+  {
+    "id": "v5/train/look_right/0001/a/explicit",
+    "split": "train",
+    "instruction": "Move your head rightward so your gaze turns right, then keep the new heading. Movement requirements: 3.5-8 seconds total and 15-42 degrees of yaw excursion. End at absolute robot yaw -27.21 degrees (tolerance 3 degrees), holding there. This is an absolute angle; recipe values are offsets from current_pose.",
+    "origin": {
+      "body": 3.626,
+      "left": 10.0,
+      "pitch": -9.168,
+      "right": -10.0,
+      "roll": 1.945,
+      "x": 0.00075,
+      "y": -0.00081,
+      "yaw": 8.228,
+      "z": -0.00075
+    },
+    "family": "look_right",
+    "track": "explicit",
+    "intent": {
+      "gesture": "look_right",
+      "endpoint": "absolute",
+      "excursion_deg": [
+        15.0,
+        42.0
+      ],
+      "duration_s": [
+        3.5,
+        8.0
+      ],
+      "tolerance_deg": 3.0,
+      "absolute_deg": -27.21
+    }
+  },
+  {
+    "id": "v5/train/wiggle/0001/b/explicit",
+    "split": "train",
+    "instruction": "Give your head a cheerful left-right wiggle exactly 3 times, finishing in the original orientation. Movement requirements: 3.5-8 seconds total and 10-26 degrees of yaw excursion. Do exactly 3 cycles, then return within 2 degrees of the initial angle.",
+    "origin": {
+      "body": -9.328,
+      "left": 10.0,
+      "pitch": 3.004,
+      "right": -10.0,
+      "roll": -0.07,
+      "x": -7e-05,
+      "y": -0.00034,
+      "yaw": -12.068,
+      "z": 0.00024
+    },
+    "family": "wiggle",
+    "track": "explicit",
+    "intent": {
+      "gesture": "wiggle",
+      "endpoint": "return",
+      "cycles": 3,
+      "excursion_deg": [
+        10.0,
+        26.0
+      ],
+      "duration_s": [
+        3.5,
+        8.0
+      ],
+      "tolerance_deg": 2.0
+    }
+  }
+]

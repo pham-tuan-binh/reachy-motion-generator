@@ -1,0 +1,70 @@
+{
+  "schema_version": 2,
+  "id": "gesture-intent-v8-step-20-residual-500",
+  "state_contract": "settled-relative-v1",
+  "base": {
+    "repo_id": "binhpham/reachy-mini-motion-planner-4b",
+    "revision": "1b60d8f16b85473ceb20e3b62e464780c532b519",
+    "subfolder": "planner"
+  },
+  "adapter": {
+    "repo_id": "diwank/reachy-mini-gesture-intent-lora-v8-20261117",
+    "revision": "a2614e5ba490e4353854b604d7da6237dbe03552",
+    "files": {
+      "adapter_config.json": "4319feb77a7b90357e75aa5d019a5ef9d1036e865e8e03c5afddc8c9941a6102",
+      "adapter_model.safetensors": "ea630cb6742746e9a90a47e25c039e33ad22b6e614065e4a99623dc773f28da9"
+    },
+    "step": 20
+  },
+  "generator": {
+    "repo_id": "diwank/reachy-mini-trajectory-generator-v4-20261116",
+    "revision": "c33fe3d2f54a6dc0d90c271a2adeda89021d7581",
+    "filename": "generator.pt",
+    "sha256": "09b46017484f06ebf5c9cc5eb2d18dc8ce7a6976426530830ff1df60104bae5f",
+    "kind": "residual",
+    "step": 500
+  },
+  "planner_settings": {
+    "max_new_tokens": 512,
+    "max_prompt_tokens": 1536,
+    "do_sample": false,
+    "enable_thinking": false,
+    "retries": 0
+  },
+  "generator_settings": {
+    "mode": "nominal",
+    "steps": 8,
+    "cfg": 1.0,
+    "lowpass_hz": 4.0
+  },
+  "output": {
+    "fps": 25,
+    "channels": [
+      "x",
+      "y",
+      "z",
+      "roll",
+      "pitch",
+      "yaw",
+      "right",
+      "left",
+      "body"
+    ],
+    "units": "xyz metres; roll/pitch/yaw, signed antennas and body radians",
+    "anchored_to_origin": false,
+    "safety_checked": false
+  },
+  "evidence": {
+    "repo_id": "diwank/reachy-mini-gesture-intent-v8-20261117",
+    "revision": "1fd034f9bab46daf65b7b938f0f4f9bbaaa0c18e",
+    "kind": "Held-out numerical replay on 200 tasks in ten single-gesture families; physical validation pending"
+  },
+  "intent_assets": {
+    "repo_id": "diwank/reachy-mini-gesture-intent-v8-20261117",
+    "revision": "1fd034f9bab46daf65b7b938f0f4f9bbaaa0c18e",
+    "files": {
+      "intent_examples.json": "b9ab7eadb8f45225eacb039bbd1e34ce17c369f1fbf05b1504cc1d9587cfae34",
+      "intent_defaults.json": "d12a126ce43029b735fe7a8df0cb99f402b55dd9e112e79d8b1a064e129addc7"
+    }
+  }
+}

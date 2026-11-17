@@ -1,0 +1,42 @@
+{
+  "nod": {
+    "excursion_deg": 7.5,
+    "duration_s": 6.0
+  },
+  "shake": {
+    "excursion_deg": 13.0,
+    "duration_s": 6.0
+  },
+  "tilt_left": {
+    "excursion_deg": 14.660499999999999,
+    "duration_s": 6.0
+  },
+  "tilt_right": {
+    "excursion_deg": 15.873000000000001,
+    "duration_s": 6.0
+  },
+  "look_up": {
+    "excursion_deg": 12.4885,
+    "duration_s": 6.0
+  },
+  "look_down": {
+    "excursion_deg": 14.993500000000001,
+    "duration_s": 6.0
+  },
+  "look_left": {
+    "excursion_deg": 29.9045,
+    "duration_s": 6.0
+  },
+  "look_right": {
+    "excursion_deg": 28.061500000000002,
+    "duration_s": 6.0
+  },
+  "sleepy": {
+    "excursion_deg": 14.6765,
+    "duration_s": 6.0
+  },
+  "wiggle": {
+    "excursion_deg": 13.0,
+    "duration_s": 6.0
+  }
+}
