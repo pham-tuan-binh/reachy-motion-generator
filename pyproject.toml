@@ -1,7 +1,7 @@
 [project]
 name = "reachy-motion-generator"
-version = "1.3.0"
-description = "State-aware Reachy Mini motion: retained RL planner and bounded residual trajectory generator"
+version = "1.4.0"
+description = "State-aware Reachy Mini motion: gesture intent planner and bounded residual trajectory generator"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
@@ -34,5 +34,5 @@ packages = ["common", "planner", "planner.distill", "generator", "renderer", "in
 
 [tool.setuptools.package-data]
 common = ["assets/*.json"]
-planner = ["examples/*"]
-inference = ["default_pipeline.json"]
+planner = ["examples/*", "intent_defaults.json", "intent_examples.json"]
+inference = ["default_pipeline.json", "recipe_pipeline.json"]

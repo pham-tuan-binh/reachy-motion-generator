@@ -6,7 +6,8 @@ This fork separates the reusable generator experiment from
 state input columns; `residual` learns bounded detail around a deterministic
 plan; `large` trains a roughly 57M-parameter generator from scratch. The original
 generator, sampler, DSL and explicit legacy planner paths remain available.
-The primary package default pairs the retained RL planner with `residual-500`.
+The primary package default pairs the v8 intent planner and deterministic recipe
+compiler with `residual-500`.
 Exact dimensions and parameter counts are recorded in each checkpoint.
 
 The code accepts state as an input. This experiment did not include a
@@ -53,29 +54,36 @@ PyTorch checkpoint files. Download provenance and byte hashes are in
 ## Primary default
 
 `MotionPipeline`, `reachy-motion`, `python -m inference.pipeline` and the root
-`pipeline.py` use the retained RL adapter from
-[planner-repair-v6](https://huggingface.co/diwank/reachy-mini-planner-repair-v6-20261116)
-on the original 4B text decoder, followed by v4 `residual-500`. The package pins
-immutable model revisions and verifies adapter/generator hashes. The v6-selected
-adapter is the unchanged prior RL initializer (step 0), not a new corrective-SFT
-checkpoint. The text decoder is extracted before the PEFT adapter is merged;
-the original multimodal model cannot be substituted directly into a text-only
-adapter loader.
+`pipeline.py` use the 4B text decoder with the v8 step-20 LoRA. The planner
+receives the instruction, the settled pose and three frozen training examples.
+It emits an intent for one of ten gesture families. The compiler resolves the
+endpoint against the starting pose, constructs cycles and holds, and uses
+training-derived defaults when excursion or duration is omitted. An unsupported
+model intent or infeasible recipe raises an error. The package pins immutable
+model revisions and verifies the adapter, generator and intent assets by hash.
+[V8 adapter](https://huggingface.co/diwank/reachy-mini-gesture-intent-lora-v8-20261117)
 
 ```python
 from inference import MotionPipeline
 
-pose = dict(roll=0., pitch=-4., yaw=10., body=5.,
-            right=-10., left=10., x=.001, y=0., z=0.)
-pipeline = MotionPipeline(device="cuda")
-result = pipeline.generate("Look gently left, then return.", current_pose=pose, seed=123)
+pose = dict(roll=0., pitch=0., yaw=6., body=0.,
+            right=0., left=0., x=0., y=0., z=0.)
+pipeline = MotionPipeline()
+result = pipeline.generate("Look left and hold at an absolute yaw of +18 degrees.",
+                           current_pose=pose, seed=123)
 result.save("runs/look.npz")
 ```
 
-Planning is greedy with no retries and a 512-token completion limit. Recipe
-expansion is nominal; residual sampling uses eight steps, CFG 1.0 and 4 Hz
-filtering. The NPZ and JSON receipt preserve the pose, recipe, model identities
-and settings. This API has no robot I/O and returns unanchored trajectories.
+The compiler requests a +12° yaw change for this pose. Planning is greedy and
+allows up to 512 new tokens in one attempt. Nominal recipe expansion feeds
+residual checkpoint 500 with eight steps, CFG 1.0 and 4 Hz filtering. The
+NPZ and JSON receipt preserve the pose, intent, recipe, model identities and
+settings. The application must anchor and check the trajectory before playback.
+
+The v1.3 state-aware planner writes a free-form recipe from the instruction and
+pose. Select it explicitly with `MotionPipeline(planner_mode="recipe")` or
+`reachy-motion --planner-mode recipe`. It uses the retained v6 adapter and the
+same residual generator. [V6 adapter](https://huggingface.co/diwank/reachy-mini-planner-repair-v6-20261116)
 
 ## Both state interfaces
 
@@ -188,12 +196,18 @@ not a safety proof.
 
 ## Results and evidence limits
 
-The current end-to-end default scored **42.875% joint task/safety success** on
-200 tasks in 50 groups under the [v7 retrospective evaluation](https://huggingface.co/datasets/diwank/reachy-mini-eval-boundaries-v7-20261117),
-versus **40.5%** for the same retained RL planner with direct-plan output. This
-rescored existing outputs after fixing evaluation boundaries. It is neither an
-independent confirmation nor a new training gain, and does not establish physical
-acceptance or naturalness.
+On 200 fresh held-out tasks across ten gesture families, the v8 end-to-end
+pipeline scored **90.38% joint task and safety success**. The previous v1.3
+recipe planner with the same generator scored **28.25%**. Direct playback of
+the v8 recipes scored 90.50%. The paired 95% interval for the v8 gain over
+v1.3 was +53.00 to +70.88 percentage points across 50 pose/wording groups.
+These figures measure numerical replay. Physical motion quality and safety
+require attended evaluation.
+[V8 held-out report](https://huggingface.co/datasets/diwank/reachy-mini-gesture-intent-v8-20261117/blob/1fd034f9bab46daf65b7b938f0f4f9bbaaa0c18e/report.md)
+
+The earlier v7 retrospective rescored a different set of outputs. On that set,
+the v1.3 pipeline scored 42.875% joint success with residual-500 and 40.5%
+with direct-plan output. [V7 results](https://huggingface.co/datasets/diwank/reachy-mini-eval-boundaries-v7-20261117)
 
 The following results are the separate, original generator-only experiment:
 

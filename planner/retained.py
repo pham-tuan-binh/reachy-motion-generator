@@ -1,10 +1,11 @@
-"""Load the retained RL adapter using the text-only extraction used in evaluation."""
+"""Frozen text decoder used by the two state-aware planners."""
 import json
 
 import torch
 
-from inference.defaults import default_config, planner_checkpoints
+from inference.defaults import default_config, intent_asset, planner_checkpoints
 from inference.engine import Planner
+from planner.intent import compile_recipe, intent_messages, parse_intent
 from planner.state import state_messages
 
 
@@ -24,15 +25,15 @@ def load_text_model(path, dtype):
     return model
 
 
-class RetainedPlanner:
-    """Pinned base plus retained RL LoRA, merged for greedy inference."""
+class TextDecoder:
+    """Load the pinned text decoder and merge the selected adapter for inference."""
 
-    def __init__(self, device):
+    def __init__(self, device, config):
         from peft import PeftModel
         from transformers import AutoTokenizer
 
-        base_path, adapter_path = planner_checkpoints()
-        self.settings = default_config()["planner_settings"]
+        base_path, adapter_path = planner_checkpoints(config)
+        self.settings = config["planner_settings"]
         self.tokenizer = AutoTokenizer.from_pretrained(base_path, padding_side="left")
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -42,9 +43,9 @@ class RetainedPlanner:
         self.model = PeftModel.from_pretrained(base, str(adapter_path), is_trainable=False).merge_and_unload()
         self.model = self.model.to(device).eval()
 
-    def plan(self, prompt, current_pose):
+    def complete(self, messages):
         tokenizer, model = self.tokenizer, self.model
-        text = tokenizer.apply_chat_template(state_messages(prompt, current_pose), tokenize=False,
+        text = tokenizer.apply_chat_template(messages, tokenize=False,
             add_generation_prompt=True, enable_thinking=self.settings["enable_thinking"])
         encoded = tokenizer(text, return_tensors="pt", add_special_tokens=False).to(self.device)
         if encoded.input_ids.shape[1] > self.settings["max_prompt_tokens"]:
@@ -58,9 +59,39 @@ class RetainedPlanner:
                 pad_token_id=tokenizer.pad_token_id, use_cache=True)
         tokens = generated[0, encoded.input_ids.shape[1]:].tolist()
         if not tokens or tokens[-1] not in stops:
-            raise ValueError("Planner exhausted its completion allowance; refusing a truncated recipe")
-        completion = tokenizer.decode(tokens, skip_special_tokens=True)
+            raise ValueError("Planner exhausted its completion allowance; refusing a truncated completion")
+        return tokenizer.decode(tokens, skip_special_tokens=True)
+
+
+class RetainedPlanner(TextDecoder):
+    """The v1.3 free-form recipe planner with the retained v6 RL adapter."""
+
+    def __init__(self, device):
+        super().__init__(device, default_config("recipe"))
+
+    def plan(self, prompt, current_pose):
+        completion = self.complete(state_messages(prompt, current_pose))
         idea, recipe = Planner.parse(completion)
         if recipe is None:
             raise ValueError("Planner did not produce a valid recipe")
         return idea, recipe, completion
+
+    def plan_details(self, prompt, current_pose):
+        idea, recipe, completion = self.plan(prompt, current_pose)
+        return {"idea": idea, "recipe": recipe, "completion": completion}
+
+
+class IntentPlanner(TextDecoder):
+    """Extract one v8 gesture intent and compile it against the settled pose."""
+
+    def __init__(self, device):
+        config = default_config()
+        self.examples = intent_asset("intent_examples.json", config)
+        self.defaults = intent_asset("intent_defaults.json", config)
+        super().__init__(device, config)
+
+    def plan_details(self, prompt, current_pose):
+        completion = self.complete(intent_messages(prompt, current_pose, self.examples))
+        intent = parse_intent(completion)
+        recipe = compile_recipe(intent, current_pose, defaults=self.defaults)
+        return {"idea": intent["gesture"], "intent": intent, "recipe": recipe, "completion": completion}

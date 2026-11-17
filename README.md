@@ -1,17 +1,14 @@
 # Reachy Mini text-to-motion
 
-The primary default is the **retained state-aware RL planner plus v4 bounded
-residual generator, checkpoint 500**. An instruction and a settled current pose
-produce a recipe, a deterministic nominal plan, then a 25 Hz numerical trajectory.
-The package pins the base model, adapter and generator revisions and checks the
-adapter and generator hashes when loading.
-
-- **Planner:** [retained RL adapter](https://huggingface.co/diwank/reachy-mini-planner-repair-v6-20261116)
-  on [binhpham's 4B base](https://huggingface.co/binhpham/reachy-mini-motion-planner-4b).
-  The adapter is the unchanged initializer retained by the v6 experiment (step 0).
-- **Generator:** [v4 residual-500](https://huggingface.co/diwank/reachy-mini-trajectory-generator-v4-20261116).
-- **Settings:** greedy planning, no retries, at most 512 new tokens; nominal recipe
-  expansion; eight generator steps, CFG 1.0 and 4 Hz filtering.
+The default pipeline converts an instruction and a settled robot pose into a
+25 Hz trajectory. Binh's 4B planner with the **v8 step-20 intent LoRA** extracts
+the gesture and its constraints. A deterministic compiler converts the intent
+into a relative recipe. The **v4 residual generator at checkpoint 500** adds
+bounded motion detail to the nominal plan. The package pins the model revisions
+and verifies the adapter, generator and bundled intent assets by hash.
+[Base model](https://huggingface.co/binhpham/reachy-mini-motion-planner-4b) ·
+[Intent adapter](https://huggingface.co/diwank/reachy-mini-gesture-intent-lora-v8-20261117) ·
+[Residual generator](https://huggingface.co/diwank/reachy-mini-trajectory-generator-v4-20261116)
 
 ## Install and generate
 
@@ -19,41 +16,52 @@ adapter and generator hashes when loading.
 pip install 'git+https://github.com/creatorrr/reachy-motion-generator.git'
 ```
 
-The first call downloads the pinned public models. No API key is required.
-Use a CUDA GPU for the 4B planner; CPU inference is supported but slower.
+The first call downloads the pinned public models anonymously. Use a CUDA GPU
+for the 4B planner. The package also supports CPU inference.
 
 ```python
 from inference import MotionPipeline
 
 # Replace these example values with the robot's measured, settled pose.
-pose = dict(roll=0., pitch=-4., yaw=10., body=5.,
-            right=-10., left=10., x=.001, y=0., z=0.)
+pose = dict(roll=0., pitch=0., yaw=6., body=0.,
+            right=0., left=0., x=0., y=0., z=0.)
 
-pipeline = MotionPipeline(device="cuda")
-result = pipeline.generate("Look gently left, then return.", current_pose=pose, seed=123)
+pipeline = MotionPipeline()
+result = pipeline.generate("Look left and hold at an absolute yaw of +18 degrees.", current_pose=pose, seed=123)
 result.save("runs/look.npz")
 ```
 
-Or save the nine-field pose as `pose.json` and run:
+With this example pose the compiler requests a +12° yaw change. To use the CLI,
+save the same nine fields as `pose.json` and run the following command.
 
 ```bash
-reachy-motion --prompt 'Look gently left, then return.' \
+reachy-motion --prompt 'Look left and hold at an absolute yaw of +18 degrees.' \
   --origin-file pose.json --out runs/look.npz --device cuda
 ```
 
-`python -m inference.pipeline` and, from a checkout, `python pipeline.py` use the
-same default. A current pose is required: angles are degrees, translations are
-metres, and the contract assumes the robot is settled. It does not model velocity
-or interruption history. See [the state contract](docs/STATE_CONDITIONED.md#both-state-interfaces)
-for axis conventions.
+`python -m inference.pipeline` and the checkout's `python pipeline.py` use the
+same default. Supply all nine settled pose fields, with angles in degrees and
+translations in metres. Velocity and interruption history are outside the
+settled-pose contract. [Axis conventions](docs/STATE_CONDITIONED.md#both-state-interfaces)
 
-The result is an NPZ containing an unanchored native `(T,9)` trajectory and origin,
-plus a JSON receipt with model identities and inference settings. Output channels
-are xyz metres, roll/pitch/yaw Euler radians, signed right/left antenna radians,
-and body-yaw radians. The application must derive offsets from the first frame,
-anchor them to the measured pose using its rotation convention, and apply its
-clearance, IK and controller checks before playback. The package does not connect
-to the robot or provide those runtime guards.
+The NPZ contains an unanchored native `(T,9)` trajectory and the starting pose.
+The JSON receipt records the model identities, intent, recipe and settings.
+Output channels are xyz metres, roll/pitch/yaw Euler radians, signed right/left
+antenna radians and body-yaw radians. Before playback, the application must
+derive offsets from the first frame, anchor them to its measured pose and apply
+its clearance, IK and controller checks.
+
+## Planner modes
+
+The default handles one of ten familiar gestures per request. Use a nod, shake,
+wiggle, sleepy head droop, left or right tilt, or a look left, right, up or down.
+The model extracts any specified endpoint, count, angle and duration constraints.
+An unsupported model intent or infeasible recipe raises an error. The caller
+chooses whether to try a different planner.
+
+Select `MotionPipeline(planner_mode="recipe")` or pass `--planner-mode recipe` to
+`reachy-motion` for the v1.3 state-aware planner that writes free-form recipes.
+This mode also requires a settled pose and uses residual checkpoint 500.
 
 ## Generate from a recipe
 
@@ -71,16 +79,13 @@ portable training and numerical validation.
 
 ## Evidence for this default
 
-On the 200-task, 50-group v7 retrospective evaluation, the retained RL planner
-with residual-500 scored **42.875% joint task/safety success**, versus **40.5%**
-with deterministic direct-plan output. This is a rescore of existing trajectories
-after evaluation-boundary fixes; it is not independent confirmation or a new
-training gain. No physical robot acceptance or blinded naturalness assessment
-has been established by these checks. The [v7 evaluation artifacts](https://huggingface.co/datasets/diwank/reachy-mini-eval-boundaries-v7-20261117)
-record the comparison and its limitations.
-
-The earlier generator-only 100% result supplied known-correct recipes and also
-had a 100% direct-plan control. It does not measure end-to-end language planning.
+In numerical replay on **200 held-out tasks** across ten gesture families, the
+v8 default achieved **90.38% joint task and safety success**. The previous
+recipe planner scored **28.25%** on the same tasks with the same residual
+generator. Direct playback of the v8 recipes scored 90.50%. V8 produced a recipe
+for 198 of 200 tasks. Of the 792 generated draws, 69 failed raw mechanical checks.
+Physical motion quality and safety still require attended tests.
+[Held-out evaluation](https://huggingface.co/datasets/diwank/reachy-mini-gesture-intent-v8-20261117/blob/1fd034f9bab46daf65b7b938f0f4f9bbaaa0c18e/report.md)
 
 ## Legacy serving and upstream work
 

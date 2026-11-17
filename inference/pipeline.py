@@ -15,7 +15,7 @@ from common.provenance import digest, write_json
 from generator.conditioned import load_generator, origins_array, sample_batch
 from generator.plans import recipe_to_plan
 from inference.defaults import default_config, generator_checkpoint
-from planner.state import state_messages
+from planner.state import validate_pose
 
 
 @dataclass
@@ -40,12 +40,15 @@ class MotionResult:
 
 
 class MotionPipeline:
-    """Retained 4B RL planner + nominal expansion + v4 residual-500.
+    """V8 gesture intent planner + deterministic recipe compiler + v4 residual-500.
 
     Models are loaded lazily once. Each call requires a complete settled pose.
     Outputs still require application-owned anchoring and safety admission.
     """
-    def __init__(self, device="auto"):
+    def __init__(self, device="auto", *, planner_mode="intent"):
+        if planner_mode not in ("intent", "recipe"):
+            raise ValueError("planner_mode must be 'intent' or 'recipe'")
+        self._planner_mode = planner_mode
         self.device = ("cuda" if torch.cuda.is_available() else "cpu") if device == "auto" else device
         self._planner = self._generator = None
         self._lock = threading.Lock()
@@ -53,32 +56,34 @@ class MotionPipeline:
     @property
     def config(self):
         """A copy of the pinned configuration; modifying it cannot change loading."""
-        return default_config()
+        return default_config(self._planner_mode)
 
     def generate(self, prompt, *, current_pose, seed=123):
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("A nonempty instruction is required")
-        state_messages(prompt, current_pose)
+        validate_pose(current_pose)
         origin = dict(current_pose)
         if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 2**63:
             raise ValueError("seed must be an integer in [0, 2**63)")
         with self._lock:
             if self._planner is None:
-                from planner.retained import RetainedPlanner
-                self._planner = RetainedPlanner(self.device)
+                from planner.retained import IntentPlanner, RetainedPlanner
+                planner = IntentPlanner if self._planner_mode == "intent" else RetainedPlanner
+                self._planner = planner(self.device)
+            details = self._planner.plan_details(prompt, origin)
+            config = self.config
             if self._generator is None:
-                self._generator = load_generator(generator_checkpoint(), self.device)
-            idea, recipe, completion = self._planner.plan(prompt, origin)
+                self._generator = load_generator(generator_checkpoint(config), self.device)
             net, stats, metadata = self._generator
-            settings = self.config["generator_settings"]
-            plan = recipe_to_plan(recipe, seed, settings["mode"])
+            settings = config["generator_settings"]
+            plan = recipe_to_plan(details["recipe"], seed, settings["mode"])
             if len(frames(plan)) > net.maxlen:
                 raise ValueError("Recipe exceeds the checkpoint's maximum duration")
             trajectory = sample_batch(net, stats, [plan], [origin], [seed],
                 steps=settings["steps"], cfg=settings["cfg"], lowpass_hz=settings["lowpass_hz"])[0]
-        receipt = dict(version="state-aware-motion-sample-v1", pipeline=default_config(),
-            prompt=prompt, idea=idea, recipe=recipe, completion=completion, origin=origin, seed=seed,
-            metadata=metadata, shape=list(trajectory.shape), **self.config["output"],
+        receipt = dict(version="state-aware-motion-sample-v1", pipeline=config,
+            prompt=prompt, **details, origin=origin, seed=seed,
+            metadata=metadata, shape=list(trajectory.shape), **config["output"],
             physical_robot_tested=False)
         return MotionResult(trajectory, receipt)
 
@@ -92,13 +97,16 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--planner-mode", choices=("intent", "recipe"), default="intent",
+                        help="Use gesture intent compilation (default) or the v1.3 free-form recipe planner")
     args = parser.parse_args()
     origin = json.loads(args.origin if args.origin is not None else args.origin_file.read_text())
     if args.out.suffix != ".npz":
         parser.error("--out must be an .npz filename")
     if args.out.exists() or args.out.with_suffix(".json").exists():
         parser.error("output already exists; choose a fresh filename")
-    result = MotionPipeline(args.device).generate(args.prompt, current_pose=origin, seed=args.seed)
+    pipeline = MotionPipeline(args.device, planner_mode=args.planner_mode)
+    result = pipeline.generate(args.prompt, current_pose=origin, seed=args.seed)
     receipt = result.save(args.out)
     print(json.dumps({"pipeline": result.receipt["pipeline"]["id"], "shape": list(result.trajectory.shape),
                          "anchored_to_origin": False, "receipt": str(receipt)}, indent=2))

@@ -16,6 +16,8 @@ from planner.state import ORIGIN_FIELDS
 
 POSE = {"roll": 1., "pitch": -4., "yaw": 10., "body": 5., "right": -10., "left": 10., "x": .001, "y": 0., "z": 0.}
 RECIPE = "go 1 y=5 E=0 | go 1 y=0 E=0"
+INTENT = {"gesture": "look_left", "endpoint": "absolute", "absolute_deg": 15.0}
+COMPILED = "hold 0.08 E=0 | go 5.4 y=5 b=5 E=0 | hold 0.52 E=0"
 
 
 def test_default_selection_is_pinned_and_independent_between_calls():
@@ -87,13 +89,14 @@ def stub_pipeline(monkeypatch):
     metadata = {"version": "state-conditioned-generator-v4", "kind": "residual", "device": "cpu"}
     actual_expand = pipeline_module.recipe_to_plan
 
-    class FakePlanner:
-        def __init__(self, device):
-            calls["planner_load"].append(device)
+    def load_decoder(self, device, config):
+        calls["planner_load"].append((device, config["adapter"]["repo_id"]))
 
-        def plan(self, prompt, origin):
-            calls["planner"].append((prompt, copy.deepcopy(origin)))
-            return "Look left and return", RECIPE, json.dumps({"idea": "Look left and return", "recipe": RECIPE})
+    def complete(self, messages):
+        calls["planner"].append(copy.deepcopy(messages))
+        if isinstance(self, retained.IntentPlanner):
+            return json.dumps(INTENT)
+        return json.dumps({"idea": "Look left and return", "recipe": RECIPE})
 
     def load(checkpoint, device):
         calls["generator_load"].append((checkpoint, device))
@@ -108,8 +111,9 @@ def stub_pipeline(monkeypatch):
                                     "origins": copy.deepcopy(origins), "seeds": seeds, "settings": kwargs})
         return [np.arange(len(pipeline_module.frames(plans[0])) * 9, dtype=np.float32).reshape(-1, 9) / 1000]
 
-    monkeypatch.setattr(retained, "RetainedPlanner", FakePlanner)
-    monkeypatch.setattr(pipeline_module, "generator_checkpoint", lambda: Path("pinned-generator.pt"))
+    monkeypatch.setattr(retained.TextDecoder, "__init__", load_decoder)
+    monkeypatch.setattr(retained.TextDecoder, "complete", complete)
+    monkeypatch.setattr(pipeline_module, "generator_checkpoint", lambda config: Path("pinned-generator.pt"))
     monkeypatch.setattr(pipeline_module, "load_generator", load)
     monkeypatch.setattr(pipeline_module, "recipe_to_plan", expand)
     monkeypatch.setattr(pipeline_module, "sample_batch", sample)
@@ -118,7 +122,7 @@ def stub_pipeline(monkeypatch):
 
 @pytest.mark.parametrize("pose", [None, {}, {**POSE, "yaw": True}, {**POSE, "yaw": "10"},
                                   {**POSE, "x": float("inf")}, {**POSE, "pitch": float("nan")},
-                                  {**POSE, "extra": 0}])
+                                  {**POSE, "extra": 0}, {**POSE, "yaw": 10**1000}])
 def test_bad_state_rejected_before_loading_any_model(stub_pipeline, pose):
     pipeline, calls, _, _ = stub_pipeline
     with pytest.raises(ValueError):
@@ -140,10 +144,12 @@ def test_default_pipeline_forwards_state_and_exact_sampling_contract(stub_pipeli
     pose = dict(POSE)
     result = pipeline.generate("Look left and return", current_pose=pose, seed=123)
     pipeline.generate("Look left again", current_pose=pose, seed=124)
-    assert calls["planner_load"] == ["cpu"]
+    assert calls["planner_load"] == [("cpu", "diwank/reachy-mini-gesture-intent-lora-v8-20261117")]
     assert calls["generator_load"] == [(Path("pinned-generator.pt"), "cpu")]
-    assert calls["planner"][0] == ("Look left and return", POSE)
-    assert calls["expansion"] == [(RECIPE, 123, "nominal"), (RECIPE, 124, "nominal")]
+    assert json.loads(calls["planner"][0][-1]["content"]) == {"instruction": "Look left and return", "current_pose": POSE}
+    assert result.receipt["intent"] == INTENT
+    assert result.receipt["recipe"] == COMPILED
+    assert calls["expansion"] == [(COMPILED, 123, "nominal"), (COMPILED, 124, "nominal")]
     sample = calls["sample"][0]
     assert sample["net"] is network and sample["stats"] is stats
     assert sample["origins"] == [POSE] and sample["seeds"] == [123]
@@ -203,7 +209,7 @@ def test_mutating_returned_pipeline_config_cannot_change_sampling_or_provenance(
     config["generator_settings"]["cfg"] = 99.
     config["generator"]["sha256"] = "untrusted"
     result = pipeline.generate("Look left", current_pose=POSE)
-    assert calls["expansion"] == [(RECIPE, 123, "nominal")]
+    assert calls["expansion"] == [(COMPILED, 123, "nominal")]
     assert calls["sample"][0]["settings"] == {"steps": 8, "cfg": 1., "lowpass_hz": 4.}
     assert result.receipt["pipeline"] == defaults.default_config()
 
@@ -306,7 +312,7 @@ def test_retained_planner_rejects_long_prompt_without_truncating_state(stub_reta
 
 
 @pytest.mark.parametrize("tokens,completion,message", [
-    ([7], json.dumps({"recipe": RECIPE}), "truncated recipe"),
+    ([7], json.dumps({"recipe": RECIPE}), "truncated completion"),
     ([7, 2], "invalid JSON", "valid recipe"),
     ([7, 2], json.dumps({"recipe": "not a DSL recipe"}), "valid recipe"),
 ])
@@ -316,3 +322,41 @@ def test_retained_planner_rejects_failed_completion_without_retry(stub_retained_
     with pytest.raises(ValueError, match=message):
         planner.plan("Look left", POSE)
     assert len(calls["generate"]) == 1
+
+def test_explicit_recipe_mode_uses_previous_adapter_and_receipt(stub_pipeline):
+    from planner.state import state_messages
+
+    _, calls, _, _ = stub_pipeline
+    pipeline = pipeline_module.MotionPipeline(device="cpu", planner_mode="recipe")
+    result = pipeline.generate("Look left and return", current_pose=POSE)
+    assert calls["planner_load"] == [("cpu", "diwank/reachy-mini-planner-repair-v6-20261116")]
+    assert calls["planner"] == [state_messages("Look left and return", POSE)]
+    assert result.receipt["pipeline"]["id"] == "retained-rl-residual-500-v1"
+    assert result.receipt["recipe"] == RECIPE and "intent" not in result.receipt
+
+
+def test_invalid_intent_fails_before_generator_load(stub_pipeline, monkeypatch):
+    from planner.retained import TextDecoder
+
+    monkeypatch.setattr(TextDecoder, "complete", lambda self, messages: '{"gesture":"unsupported"}')
+    pipeline, calls, _, _ = stub_pipeline
+    with pytest.raises(ValueError, match="Unsupported"):
+        pipeline.generate("Fly away", current_pose=POSE)
+    assert len(calls["planner_load"]) == 1
+    assert not calls["generator_load"] and not calls["sample"]
+
+
+def test_intent_asset_binding_and_pose_offsets(stub_pipeline):
+    config = defaults.default_config()
+    config["intent_assets"]["files"]["intent_examples.json"] = "0" * 64
+    with pytest.raises(ValueError, match="hash differs"):
+        defaults.intent_asset("intent_examples.json", config)
+
+    pipeline, _, _, _ = stub_pipeline
+    result = pipeline.generate("Look left", current_pose={**POSE, "yaw": -4.})
+    assert "y=19 b=19" in result.receipt["recipe"]
+
+
+def test_unknown_planner_mode_rejected():
+    with pytest.raises(ValueError, match="planner_mode"):
+        pipeline_module.MotionPipeline(planner_mode="auto")
