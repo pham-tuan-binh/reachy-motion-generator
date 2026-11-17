@@ -30,6 +30,9 @@ def sample_recipe(checkpoint, recipe, origin, out, *, seed=123, mode="nominal",
         raise ValueError("Use an .npz output filename")
     if out.exists() or receipt.exists():
         raise FileExistsError("Preserve existing numerical samples; choose a fresh output")
+    if checkpoint is None:
+        from inference.defaults import generator_checkpoint
+        checkpoint = generator_checkpoint()
     net, stats, metadata = load_generator(checkpoint, device)
     plan = recipe_to_plan(recipe, seed, mode)
     if len(frames(plan)) > net.maxlen:
@@ -52,7 +55,7 @@ def sample_recipe(checkpoint, recipe, origin, out, *, seed=123, mode="nominal",
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument("--checkpoint", type=Path, help="Override the pinned v4 residual-500 default")
     parser.add_argument("--recipe", required=True)
     pose = parser.add_mutually_exclusive_group(required=True)
     pose.add_argument("--origin", help="JSON object with all nine named settled-pose fields")

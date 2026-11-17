@@ -1,11 +1,12 @@
 # State-conditioned trajectory generator v4
 
-This branch separates the reusable generator experiment from
+This fork separates the reusable generator experiment from
 [Loopy](https://github.com/creatorrr/loopy). It adds three flow-model variants:
 `full` warm-starts the original 21.8M-parameter generator with nine zero-initialized
 state input columns; `residual` learns bounded detail around a deterministic
 plan; `large` trains a roughly 57M-parameter generator from scratch. The original
-generator, sampler, DSL, planner defaults and checkpoints remain compatible.
+generator, sampler, DSL and explicit legacy planner paths remain available.
+The primary package default pairs the retained RL planner with `residual-500`.
 Exact dimensions and parameter counts are recorded in each checkpoint.
 
 The code accepts state as an input. This experiment did not include a
@@ -19,11 +20,11 @@ confirms input use, without showing better task success or safety.
 
 ## Install and download
 
-Python 3.10+ is supported by the package. Numerical parity was checked with the
+Python 3.11+ is required by the default planner's dependencies. Numerical parity was checked with the
 pilot's PyTorch 2.15.0, NumPy 2.2.6, SciPy 1.18.1 and Rust kinematics 1.0.3.
 
 ```bash
-git clone --branch state-conditioned-generator-v4 https://github.com/creatorrr/reachy-motion-generator.git
+git clone https://github.com/creatorrr/reachy-motion-generator.git
 cd reachy-motion-generator
 pip install -e .
 hf download diwank/reachy-mini-trajectory-generator-v4-20261116 \
@@ -49,6 +50,33 @@ custom PyTorch flow models, separate from the 4B text planner. Only load trusted
 PyTorch checkpoint files. Download provenance and byte hashes are in
 `generator-manifest.json` and the linked training receipts.
 
+## Primary default
+
+`MotionPipeline`, `reachy-motion`, `python -m inference.pipeline` and the root
+`pipeline.py` use the retained RL adapter from
+[planner-repair-v6](https://huggingface.co/diwank/reachy-mini-planner-repair-v6-20261116)
+on the original 4B text decoder, followed by v4 `residual-500`. The package pins
+immutable model revisions and verifies adapter/generator hashes. The v6-selected
+adapter is the unchanged prior RL initializer (step 0), not a new corrective-SFT
+checkpoint. The text decoder is extracted before the PEFT adapter is merged;
+the original multimodal model cannot be substituted directly into a text-only
+adapter loader.
+
+```python
+from inference import MotionPipeline
+
+pose = dict(roll=0., pitch=-4., yaw=10., body=5.,
+            right=-10., left=10., x=.001, y=0., z=0.)
+pipeline = MotionPipeline(device="cuda")
+result = pipeline.generate("Look gently left, then return.", current_pose=pose, seed=123)
+result.save("runs/look.npz")
+```
+
+Planning is greedy with no retries and a 512-token completion limit. Recipe
+expansion is nominal; residual sampling uses eight steps, CFG 1.0 and 4 Hz
+filtering. The NPZ and JSON receipt preserve the pose, recipe, model identities
+and settings. This API has no robot I/O and returns unanchored trajectories.
+
 ## Both state interfaces
 
 Every state object has **all nine fields**. Angles `roll`, `pitch`, `yaw`, `body`,
@@ -64,9 +92,9 @@ from generator.plans import recipe_to_plan
 pose = dict(roll=0., pitch=-4., yaw=10., body=5.,
             right=-10., left=10., x=.001, y=0., z=0.)
 
-# Use an appropriate state-aware tuned text-planner checkpoint here.
-planner = Planner("path/to/tuned-planner", backend="hf")
-idea, recipe = planner.plan("Look left and return", seed=123, current_pose=pose)
+# For explicit merged-model experiments; use MotionPipeline for the pinned default.
+planner = Planner("path/to/merged-state-aware-planner", backend="hf")
+idea, recipe = planner.plan("Look left and return", seed=123, retries=0, current_pose=pose)
 
 # Or supply a known recipe, without calling any text model.
 recipe = "go 1 p=6 E=0 | go 1 p=0 E=0 | hold .5 E=0"
@@ -89,25 +117,26 @@ and applies them to the current pose with the application's rotation convention.
 That anchoring, clearance admission, lag evaluation and motor writer remain the
 caller's responsibility. This port includes no robot connection or playback.
 
-The existing `MotionEngine`, `/generate-dense`, `/generate-sparse` and
-`pipeline.py` still use the original sampling path and do not forward a settled
-pose. State support here is the explicit planner/generator Python interfaces
-above and the recipe CLI below, not the legacy HTTP routes.
+The existing `MotionEngine`, `/generate-dense`, `/generate-sparse` and explicit
+`python -m inference.legacy_pipeline` use the original sampling path and do not
+forward a settled pose. The primary `MotionPipeline`/`pipeline.py` and the recipe
+CLI below support state; the legacy HTTP routes do not.
 
 ## Numerical recipe CLI
 
 ```bash
 python -m generator.conditioned_cli \
-  --checkpoint bundles/generator-v4/generator.pt \
   --recipe 'go 1 p=6 E=0 | go 1 p=0 E=0 | hold .5 E=0' \
   --origin '{"roll":0,"pitch":-4,"yaw":10,"body":5,"right":-10,"left":10,"x":0.001,"y":0,"z":0}' \
   --mode nominal --seed 123 --steps 8 --cfg 1 --lowpass-hz 4 \
   --out runs/sample-v4.npz --device cpu
 ```
 
-The CLI writes `trajectory` and `origin` arrays plus a JSON receipt with the
-checkpoint/output hashes, recipe and settings. It rejects overwrite and recipe
-truncation. It does not anchor or project the sample or send it to hardware.
+Without `--checkpoint`, the CLI downloads the package's pinned `residual-500`
+checkpoint and verifies its hash. Use `--checkpoint bundles/generator-v4/generator.pt`
+or another explicit path to override it. The CLI writes `trajectory` and `origin`
+arrays plus a JSON receipt with the checkpoint/output hashes, recipe and settings.
+It rejects overwrite and recipe truncation. It does not anchor or project the sample or send it to hardware.
 `--origin-file pose.json` can replace inline JSON. `--mode randomized` reproduces
 the upstream amplitude/tempo/antenna RNG stream; nominal mode disables those
 jitters. Both use the pilot's 2 Hz filter and 0.25 s conditioning key interval.
@@ -158,6 +187,15 @@ it is not unrestricted imitation of real clips. These architectural bounds are
 not a safety proof.
 
 ## Results and evidence limits
+
+The current end-to-end default scored **42.875% joint task/safety success** on
+200 tasks in 50 groups under the [v7 retrospective evaluation](https://huggingface.co/datasets/diwank/reachy-mini-eval-boundaries-v7-20261117),
+versus **40.5%** for the same retained RL planner with direct-plan output. This
+rescored existing outputs after fixing evaluation boundaries. It is neither an
+independent confirmation nor a new training gain, and does not establish physical
+acceptance or naturalness.
+
+The following results are the separate, original generator-only experiment:
 
 The [public result report](https://huggingface.co/datasets/diwank/reachy-mini-generator-curriculum-v4-20261116/blob/main/reports/analysis.json)
 contains dev-selected checkpoint choices, fresh held-out results and provenance.

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "retained-rl-residual-500-v1",
+  "state_contract": "settled-relative-v1",
+  "base": {
+    "repo_id": "binhpham/reachy-mini-motion-planner-4b",
+    "revision": "1b60d8f16b85473ceb20e3b62e464780c532b519",
+    "subfolder": "planner"
+  },
+  "adapter": {
+    "repo_id": "diwank/reachy-mini-planner-repair-v6-20261116",
+    "revision": "260eb849b906f9fc6bb1ec0d313206a5dbd9703a",
+    "files": {
+      "adapter_config.json": "e762f9c5ad11071c7e38a8bea802ed087350339d68171629b15b81d1f6963d31",
+      "adapter_model.safetensors": "defe1878fcee5cdd9166b0d35762e11c6dc321f371bd5ee35d8a0410191cebdf"
+    },
+    "selection": "Unchanged earlier state-aware RL adapter retained at v6 step 0"
+  },
+  "generator": {
+    "repo_id": "diwank/reachy-mini-trajectory-generator-v4-20261116",
+    "revision": "c33fe3d2f54a6dc0d90c271a2adeda89021d7581",
+    "filename": "generator.pt",
+    "sha256": "09b46017484f06ebf5c9cc5eb2d18dc8ce7a6976426530830ff1df60104bae5f",
+    "kind": "residual",
+    "step": 500
+  },
+  "planner_settings": {
+    "max_new_tokens": 512,
+    "max_prompt_tokens": 1536,
+    "do_sample": false,
+    "enable_thinking": false,
+    "retries": 0
+  },
+  "generator_settings": {"mode": "nominal", "steps": 8, "cfg": 1.0, "lowpass_hz": 4.0},
+  "output": {
+    "fps": 25,
+    "channels": ["x", "y", "z", "roll", "pitch", "yaw", "right", "left", "body"],
+    "units": "xyz metres; roll/pitch/yaw, signed antennas and body radians",
+    "anchored_to_origin": false,
+    "safety_checked": false
+  },
+  "evidence": {
+    "repo_id": "diwank/reachy-mini-eval-boundaries-v7-20261117",
+    "revision": "a3e400db40dd1fb492318df3a2df9d953116f4ba",
+    "kind": "Retrospective numerical evaluation; independent confirmation and physical acceptance pending"
+  }
+}

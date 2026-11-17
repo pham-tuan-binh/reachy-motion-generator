@@ -1,16 +1,17 @@
 [project]
 name = "reachy-motion-generator"
-version = "1.2.0"
-description = "Text to motion for Reachy Mini: a fine-tuned LLM writes a motion recipe, a flow-matching transformer turns it into reachable 25 Hz motion"
+version = "1.3.0"
+description = "State-aware Reachy Mini motion: retained RL planner and bounded residual trajectory generator"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
-    "torch>=2.3",
+    "torch>=2.6",
     "huggingface-hub>=0.24",
-    "transformers",
+    "transformers==5.23.0",
+    "peft==0.21.3",
     "reachy-mini-rust-kinematics>=1.0.3",
 ]
 
@@ -19,6 +20,10 @@ serve = ["vllm==0.30.0", "fastapi", "uvicorn", "ninja"]
 render = ["mujoco==3.3.0", "imageio[ffmpeg]>=2.34", "pillow>=10", "reachy-mini>=1.10"]
 teacher = ["openai>=1.40"]
 train = ["unsloth", "trl", "datasets", "peft"]
+
+[project.scripts]
+reachy-motion = "inference.pipeline:main"
+reachy-motion-legacy = "inference.legacy_pipeline:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -30,3 +35,4 @@ packages = ["common", "planner", "planner.distill", "generator", "renderer", "in
 [tool.setuptools.package-data]
 common = ["assets/*.json"]
 planner = ["examples/*"]
+inference = ["default_pipeline.json"]
